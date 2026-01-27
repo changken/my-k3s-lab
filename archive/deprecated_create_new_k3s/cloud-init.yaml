@@ -1,0 +1,36 @@
+#cloud-config
+package_update: true
+packages:
+  - curl
+
+write_files:
+  - path: /root/install_k3s_stack.sh
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -e
+
+      # 1. Install Tailscale
+      curl -fsSL https://tailscale.com/install.sh | sh
+      
+      echo "============================================"
+      echo "Tailscale installed but NOT logged in."
+      echo "SSH in and run: sudo tailscale up --ssh"
+      echo "Then update K3s TLS SAN manually with:"
+      echo "  TS_IP=\$(tailscale ip -4)"
+      echo "  sudo systemctl stop k3s"
+      echo "  curl -sfL https://get.k3s.io | sh -s - server --tls-san \$TS_IP --node-external-ip \$TS_IP"
+      echo "============================================"
+      
+      # 2. Install K3s with basic config (without Tailscale IP for now)
+      curl -sfL https://get.k3s.io | sh -s - server
+      
+      # 3. Prepare kubeconfig for ubuntu user
+      cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/k3s.yaml
+      chown ubuntu:ubuntu /home/ubuntu/k3s.yaml
+      chmod 600 /home/ubuntu/k3s.yaml
+      
+      echo "Installation Complete!"
+
+runcmd:
+  - ["bash", "/root/install_k3s_stack.sh"]

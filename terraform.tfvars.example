@@ -1,0 +1,7 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and fill in your actual values
+# terraform.tfvars is ignored by git for security
+
+# SSH Public Key for VM Access
+# Get your key with: cat ~/.ssh/id_rsa.pub
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAA... your-email@example.com"

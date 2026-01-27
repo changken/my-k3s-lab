@@ -1,0 +1,16 @@
+# Kubeconfig (contains cluster admin credentials)
+kubeconfig/
+
+# Terraform state (if using local backend)
+*.tfstate
+*.tfstate.*
+
+# Terraform directories
+**/.terraform/*
+
+# Sensitive variable files
+*.tfvars
+*.tfvars.json
+
+# OS files
+.DS_Store
