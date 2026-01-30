@@ -47,11 +47,17 @@ my-k3s-lab/
 git clone <your-repo-url>
 cd my-k3s-lab
 
+# 建立 repo-local SSH key（備援用，避免汙染 ~/.ssh）
+mkdir -p ./.ssh
+ssh-keygen -t ed25519 -f ./.ssh/azure_emergency_ed25519 -N ""
+
 # 複製範例變數檔案
 cp terraform.tfvars.example terraform.tfvars
 
-# 編輯變數檔案，填入你的 SSH public key
-# 取得 SSH key: cat ~/.ssh/id_rsa.pub
+# 編輯變數檔案
+# - emergency_ssh_public_key_path 指向 repo-local 公鑰
+# - backup_ssh_enabled 預設 false（需要備援時再開）
+# - backup_ssh_source_cidr 改成你的家用 CIDR
 vim terraform.tfvars
 ```
 
@@ -82,16 +88,35 @@ terraform apply
 
 ### 4. 配置 Tailscale（首次部署）
 
-部署完成後，VM 已安裝 Tailscale 但尚未登入。需要手動執行：
+部署完成後，VM 尚未加入 Tailscale。建議使用 Azure Run Command 完成安裝與登入：
 
 ```bash
-# SSH 到 VM (使用 Azure Public IP)
-ssh ubuntu@<VM_PUBLIC_IP>
+# 安裝 Tailscale 並啟動服務
+az vm run-command invoke \
+  --resource-group my-k3s-lab-rg \
+  --name my-k3s-vm \
+  --command-id RunShellScript \
+  --scripts "curl -fsSL https://tailscale.com/install.sh | sh" "sudo systemctl enable --now tailscaled"
 
-# 登入 Tailscale
-sudo tailscale up --ssh
+# 取得登入 URL（輸出中會顯示）
+az vm run-command invoke \
+  --resource-group my-k3s-lab-rg \
+  --name my-k3s-vm \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale login"
 
-# 複製瀏覽器 URL 完成授權
+# 完成授權後，開啟 Tailscale SSH
+az vm run-command invoke \
+  --resource-group my-k3s-lab-rg \
+  --name my-k3s-vm \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale up --ssh"
+```
+
+接著使用 Tailscale SSH 進入 VM 進行後續操作：
+
+```bash
+tailscale ssh ubuntu@my-k3s-vm
 
 # 取得 Tailscale IP
 tailscale ip -4
@@ -144,6 +169,23 @@ terraform plan
 terraform apply
 ```
 
+### 備援 SSH（必要時）
+
+```bash
+# 在 terraform.tfvars 中暫時打開備援 SSH
+# backup_ssh_enabled = true
+# backup_ssh_source_cidr = "<YOUR_HOME_CIDR>"
+
+terraform apply
+
+# 使用 repo-local key（不寫入 ~/.ssh）
+ssh -F /dev/null -i ./.ssh/azure_emergency_ed25519 -o UserKnownHostsFile=./.ssh/known_hosts -o StrictHostKeyChecking=accept-new ubuntu@<VM_PUBLIC_IP>
+
+# 修復後關回
+# backup_ssh_enabled = false
+terraform apply
+```
+
 ### 銷毀所有資源
 
 ```bash
@@ -186,8 +228,8 @@ tailscale status
 # 確認 VM 是否啟動
 az vm list -d --query "[?name=='my-k3s-vm'].powerState" -o tsv
 
-# SSH 進 VM 檢查 K3s
-ssh ubuntu@<TAILSCALE_IP>
+# Tailscale SSH 進 VM 檢查 K3s
+tailscale ssh ubuntu@<TAILSCALE_IP>
 sudo systemctl status k3s
 ```
 

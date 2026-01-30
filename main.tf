@@ -19,9 +19,25 @@ provider "azurerm" {
 }
 
 # Variables
-variable "ssh_public_key" {
-  description = "SSH public key content for VM access"
+variable "emergency_ssh_public_key_path" {
+  description = "Path to emergency SSH public key for VM access"
   type        = string
+}
+
+variable "backup_ssh_enabled" {
+  description = "Enable backup SSH access via Public IP"
+  type        = bool
+  default     = false
+}
+
+variable "backup_ssh_source_cidr" {
+  description = "Source CIDR allowed for backup SSH access"
+  type        = string
+  default     = "1.1.1.1/32"
+}
+
+locals {
+  emergency_ssh_public_key = trimspace(file(pathexpand(var.emergency_ssh_public_key_path)))
 }
 
 # 1. Resource Group
@@ -61,16 +77,19 @@ resource "azurerm_network_security_group" "nsg" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1000
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "118.150.143.171/32"
-    destination_address_prefix = "*"
+  dynamic "security_rule" {
+    for_each = var.backup_ssh_enabled ? [1] : []
+    content {
+      name                       = "SSH"
+      priority                   = 1000
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = var.backup_ssh_source_cidr
+      destination_address_prefix = "*"
+    }
   }
 }
 
@@ -107,8 +126,10 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   admin_ssh_key {
     username   = "ubuntu"
-    public_key = var.ssh_public_key
+    public_key = local.emergency_ssh_public_key
   }
+
+  disable_password_authentication = true
 
   os_disk {
     caching              = "ReadWrite"

@@ -22,8 +22,9 @@
 ### 2.1 建立 Azure 資源
 
 ```bash
-# 產生 SSH Key（若無）
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+# 產生 repo-local SSH Key（備援用，避免汙染 ~/.ssh）
+mkdir -p ./.ssh
+ssh-keygen -t ed25519 -f ./.ssh/azure_emergency_ed25519 -N ""
 
 # 建立 Resource Group
 az group create --name my-k3s-lab-rg --location japaneast
@@ -35,19 +36,39 @@ az vm create \
   --image Ubuntu2204 \
   --size Standard_B2s \
   --admin-username ubuntu \
-  --ssh-key-values ~/.ssh/id_rsa.pub \
+  --ssh-key-values ./.ssh/azure_emergency_ed25519.pub \
   --public-ip-sku Standard
 ```
 
 ### 2.2 安裝 Tailscale 與 K3s
 
 ```bash
-# SSH 進入 VM
-ssh ubuntu@<YOUR_VM_PUBLIC_IP>
+# 安裝 Tailscale 並啟動服務（Run Command）
+az vm run-command invoke \
+  --resource-group my-k3s-lab-rg \
+  --name my-k3s-vm \
+  --command-id RunShellScript \
+  --scripts "curl -fsSL https://tailscale.com/install.sh | sh" "sudo systemctl enable --now tailscaled"
 
-# 安裝 Tailscale
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up --ssh
+# 取得登入 URL（輸出中會顯示）
+az vm run-command invoke \
+  --resource-group my-k3s-lab-rg \
+  --name my-k3s-vm \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale login"
+
+# 完成授權後，開啟 Tailscale SSH
+az vm run-command invoke \
+  --resource-group my-k3s-lab-rg \
+  --name my-k3s-vm \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale up --ssh"
+```
+
+接著使用 Tailscale SSH 進入 VM：
+
+```bash
+tailscale ssh ubuntu@my-k3s-vm
 
 # 取得 Tailscale IP
 TS_IP=$(tailscale ip -4)
@@ -64,16 +85,22 @@ curl -sfL https://get.k3s.io | sh -s - server --tls-san $TS_IP --node-external-i
 ### 3.1 設定變數
 
 ```bash
+# 產生 repo-local SSH Key（備援用，避免汙染 ~/.ssh）
+mkdir -p ./.ssh
+ssh-keygen -t ed25519 -f ./.ssh/azure_emergency_ed25519 -N ""
+
 # 複製範例檔案
 cp terraform.tfvars.example terraform.tfvars
 
-# 編輯並填入你的 SSH Public Key
+# 編輯並填入變數
 vim terraform.tfvars
 ```
 
 **terraform.tfvars 內容：**
 ```hcl
-ssh_public_key = "ssh-rsa AAAA... your-email@example.com"
+emergency_ssh_public_key_path = "./.ssh/azure_emergency_ed25519.pub"
+backup_ssh_enabled             = false
+backup_ssh_source_cidr         = "1.1.1.1/32" # 改成你的家用 CIDR
 ```
 
 ### 3.2 Terraform Cloud 設定
@@ -123,8 +150,8 @@ terraform import azurerm_linux_virtual_machine.vm "$RG_ID/providers/Microsoft.Co
 ### 4.1 取得 Kubeconfig
 
 ```bash
-# SSH 進入 VM
-ssh ubuntu@<YOUR_TAILSCALE_IP>
+# Tailscale SSH 進入 VM
+tailscale ssh ubuntu@<YOUR_TAILSCALE_IP>
 
 # 複製 kubeconfig 到本地
 sudo cat /etc/rancher/k3s/k3s.yaml
@@ -163,6 +190,23 @@ az vm start --resource-group my-k3s-lab-rg --name my-k3s-vm
 # 開機後約 1-2 分鐘，Tailscale 和 K3s 會自動啟動
 ```
 
+### 4.4 備援 SSH（必要時）
+
+```bash
+# 在 terraform.tfvars 中暫時打開備援 SSH
+# backup_ssh_enabled = true
+# backup_ssh_source_cidr = "<YOUR_HOME_CIDR>"
+
+terraform apply
+
+# 使用 repo-local key（不寫入 ~/.ssh）
+ssh -F /dev/null -i ./.ssh/azure_emergency_ed25519 -o UserKnownHostsFile=./.ssh/known_hosts -o StrictHostKeyChecking=accept-new ubuntu@<YOUR_VM_PUBLIC_IP>
+
+# 修復後關回
+# backup_ssh_enabled = false
+terraform apply
+```
+
 ---
 
 ## 5. 清理資源
@@ -194,8 +238,8 @@ tailscale status
 # 確認 VM 是否啟動
 az vm list -d --query "[?name=='my-k3s-vm'].powerState" -o tsv
 
-# SSH 進 VM 檢查 K3s 狀態
-ssh ubuntu@<YOUR_TAILSCALE_IP>
+# Tailscale SSH 進 VM 檢查 K3s 狀態
+tailscale ssh ubuntu@<YOUR_TAILSCALE_IP>
 sudo systemctl status k3s
 ```
 

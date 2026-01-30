@@ -2,6 +2,10 @@
 # Copy this file to terraform.tfvars and fill in your actual values
 # terraform.tfvars is ignored by git for security
 
-# SSH Public Key for VM Access
-# Get your key with: cat ~/.ssh/id_rsa.pub
-ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAA... your-email@example.com"
+# Emergency SSH public key (repo-local; for backup access only)
+# Generate with: ssh-keygen -t ed25519 -f ./.ssh/azure_emergency_ed25519 -N ""
+emergency_ssh_public_key_path = "./.ssh/azure_emergency_ed25519.pub"
+
+# Backup SSH (Public IP 22/tcp)
+backup_ssh_enabled     = false
+backup_ssh_source_cidr = "1.1.1.1/32"

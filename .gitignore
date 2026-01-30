@@ -1,6 +1,11 @@
 # Kubeconfig (contains cluster admin credentials)
 kubeconfig/
 
+# Repo-local SSH keys (emergency access)
+# Keep the directory tracked (via .gitkeep) but ignore everything else.
+/.ssh/*
+!/.ssh/.gitkeep
+
 # Terraform state (if using local backend)
 *.tfstate
 *.tfstate.*
