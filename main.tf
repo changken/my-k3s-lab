@@ -24,18 +24,6 @@ variable "emergency_ssh_public_key_path" {
   type        = string
 }
 
-variable "backup_ssh_enabled" {
-  description = "Enable backup SSH access via Public IP"
-  type        = bool
-  default     = false
-}
-
-variable "backup_ssh_source_cidr" {
-  description = "Source CIDR allowed for backup SSH access"
-  type        = string
-  default     = "1.1.1.1/32"
-}
-
 locals {
   emergency_ssh_public_key = trimspace(file(pathexpand(var.emergency_ssh_public_key_path)))
 }
@@ -60,40 +48,11 @@ resource "azurerm_subnet" "subnet" {
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.0.0/24"]
+
+  default_outbound_access_enabled = true
 }
 
-# 4. Public IP
-resource "azurerm_public_ip" "pip" {
-  name                = "my-k3s-vmPublicIP"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  allocation_method   = "Static"
-  sku                 = "Standard"
-}
-
-# 5. NSG
-resource "azurerm_network_security_group" "nsg" {
-  name                = "my-k3s-vmNSG"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  dynamic "security_rule" {
-    for_each = var.backup_ssh_enabled ? [1] : []
-    content {
-      name                       = "SSH"
-      priority                   = 1000
-      direction                  = "Inbound"
-      access                     = "Allow"
-      protocol                   = "Tcp"
-      source_port_range          = "*"
-      destination_port_range     = "22"
-      source_address_prefix      = var.backup_ssh_source_cidr
-      destination_address_prefix = "*"
-    }
-  }
-}
-
-# 6. NIC
+# 4. NIC
 resource "azurerm_network_interface" "nic" {
   name                = "my-k3s-vmVMNic"
   location            = azurerm_resource_group.rg.location
@@ -104,16 +63,10 @@ resource "azurerm_network_interface" "nic" {
     name                          = "ipconfigmy-k3s-vm"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.pip.id
   }
 }
 
-resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
-  network_interface_id      = azurerm_network_interface.nic.id
-  network_security_group_id = azurerm_network_security_group.nsg.id
-}
-
-# 7. VM
+# 5. VM
 resource "azurerm_linux_virtual_machine" "vm" {
   name                = "my-k3s-vm"
   resource_group_name = azurerm_resource_group.rg.name

@@ -12,6 +12,7 @@ kubeconfig/
 
 # Terraform directories
 **/.terraform/*
+tfplan
 
 # Sensitive variable files
 *.tfvars
