@@ -60,17 +60,22 @@ az vm run-command invoke \
   --scripts "curl -fsSL https://tailscale.com/install.sh | sh" \
             "sudo systemctl enable --now tailscaled"
 
-# 取得登入 URL 並完成授權
+# 使用 Auth Key 進行非互動登入（建議：ephemeral）
+# 1) 到 Tailscale Admin Console 建立 Auth key
+# 2) 用 run-command 直接把 VM 加入 tailnet 並啟用 Tailscale SSH
 az vm run-command invoke \
   --resource-group my-k3s-lab-rg --name my-k3s-vm \
   --command-id RunShellScript \
-  --scripts "sudo tailscale login"
+  --scripts "sudo tailscale up --authkey tskey-REPLACE_ME --ssh"
 
-# 啟用 Tailscale SSH
+# 驗證（可選）
 az vm run-command invoke \
   --resource-group my-k3s-lab-rg --name my-k3s-vm \
   --command-id RunShellScript \
-  --scripts "sudo tailscale up --ssh"
+  --scripts "sudo tailscale status" "sudo tailscale ip -4"
+
+# 註：不要用 `sudo tailscale login` 搭配 `az vm run-command invoke`，它會等待互動授權，
+# Azure Run Command 也不會即時回傳登入 URL，容易卡住並導致後續 run-command (Conflict)。
 ```
 
 ### 4. 取得 Kubeconfig
