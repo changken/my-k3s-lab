@@ -126,7 +126,7 @@ terraform destroy
 |------|-----|
 | **雲端平台** | Azure (japaneast) |
 | **VM 規格** | Standard_B2s (2 vCPU, 4 GB RAM) |
-| **作業系統** | Ubuntu 22.04 LTS (Gen2) |
+| **作業系統** | Ubuntu 24.04 LTS |
 | **存取方式** | Tailscale SSH（無 Public SSH） |
 
 ## 疑難排解

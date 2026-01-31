@@ -36,7 +36,7 @@ resource "azurerm_resource_group" "rg" {
 
 # 2. Virtual Network
 resource "azurerm_virtual_network" "vnet" {
-  name                = "my-k3s-vmVNET"
+  name                = "my-k3s-lab-vnet"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -44,7 +44,7 @@ resource "azurerm_virtual_network" "vnet" {
 
 # 3. Subnet
 resource "azurerm_subnet" "subnet" {
-  name                 = "my-k3s-vmSubnet"
+  name                 = "my-k3s-lab-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.0.0/24"]
@@ -54,13 +54,12 @@ resource "azurerm_subnet" "subnet" {
 
 # 4. NIC
 resource "azurerm_network_interface" "nic" {
-  name                = "my-k3s-vmVMNic"
+  name                = "my-k3s-lab-nic"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
   ip_configuration {
-    # 修正名稱以匹配現有資源
-    name                          = "ipconfigmy-k3s-vm"
+    name                          = "my-k3s-lab-ip-config"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
   }
@@ -86,16 +85,16 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
-    name                 = "my-k3s-vm_OsDisk_1_afc75defde9b43baab67fd8965882565"
+    storage_account_type = "StandardSSD_LRS"
+    disk_size_gb         = 64
+    name                 = "my-k3s-vm-osdisk"
   }
 
   source_image_reference {
     publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    # 修正: 使用 Gen2 Image
-    sku     = "22_04-lts-gen2"
-    version = "latest"
+    offer     = "ubuntu-24_04-lts"
+    sku       = "server"
+    version   = "latest"
   }
 
   # 修正: 為了匹配 Trusted Launch VM

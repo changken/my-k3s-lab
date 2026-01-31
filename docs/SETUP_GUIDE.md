@@ -25,7 +25,7 @@ az group create --name my-k3s-lab-rg --location japaneast
 az vm create \
   --resource-group my-k3s-lab-rg \
   --name my-k3s-vm \
-  --image Ubuntu2204 \
+  --image Ubuntu2404 \
   --size Standard_B2s \
   --admin-username ubuntu \
   --ssh-key-values ./.ssh/azure_emergency_ed25519.pub \
@@ -56,11 +56,9 @@ terraform init
 
 # 匯入各項資源
 terraform import azurerm_resource_group.rg "$RG_ID"
-terraform import azurerm_virtual_network.vnet "$RG_ID/providers/Microsoft.Network/virtualNetworks/my-k3s-vmVNET"
-terraform import azurerm_subnet.subnet "$RG_ID/providers/Microsoft.Network/virtualNetworks/my-k3s-vmVNET/subnets/my-k3s-vmSubnet"
-terraform import azurerm_public_ip.pip "$RG_ID/providers/Microsoft.Network/publicIPAddresses/my-k3s-vmPublicIP"
-terraform import azurerm_network_security_group.nsg "$RG_ID/providers/Microsoft.Network/networkSecurityGroups/my-k3s-vmNSG"
-terraform import azurerm_network_interface.nic "$RG_ID/providers/Microsoft.Network/networkInterfaces/my-k3s-vmVMNic"
+terraform import azurerm_virtual_network.vnet "$RG_ID/providers/Microsoft.Network/virtualNetworks/my-k3s-lab-vnet"
+terraform import azurerm_subnet.subnet "$RG_ID/providers/Microsoft.Network/virtualNetworks/my-k3s-lab-vnet/subnets/my-k3s-lab-subnet"
+terraform import azurerm_network_interface.nic "$RG_ID/providers/Microsoft.Network/networkInterfaces/my-k3s-lab-nic"
 terraform import azurerm_linux_virtual_machine.vm "$RG_ID/providers/Microsoft.Compute/virtualMachines/my-k3s-vm"
 ```
 
@@ -82,8 +80,8 @@ terraform import azurerm_linux_virtual_machine.vm "$RG_ID/providers/Microsoft.Co
 | 原因 | 解法 |
 |------|------|
 | OS Disk 名稱不符 | 在 `main.tf` 中指定完整 disk 名稱 |
-| Gen2 / Trusted Launch | 確保 `secure_boot_enabled = true`, `vtpm_enabled = true` |
-| Image SKU 不符 | 使用 `22_04-lts-gen2` 而非 `22_04-lts` |
+| Trusted Launch | 確保 `secure_boot_enabled = true`, `vtpm_enabled = true` |
+| Image 不符 | 確認使用 `ubuntu-24_04-lts` offer |
 
 ---
 
