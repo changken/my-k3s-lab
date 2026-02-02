@@ -11,6 +11,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 }
 
@@ -18,12 +22,7 @@ provider "azurerm" {
   features {}
 }
 
-# Variables
-variable "emergency_ssh_public_key_path" {
-  description = "Path to emergency SSH public key for VM access"
-  type        = string
-}
-
+# Locals (variables defined in variables.tf)
 locals {
   emergency_ssh_public_key = trimspace(file(pathexpand(var.emergency_ssh_public_key_path)))
 }
@@ -83,6 +82,12 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   disable_password_authentication = true
 
+  # Cloud-init script for automatic setup
+  custom_data = base64encode(templatefile("${path.module}/user-data-azure.sh", {
+    tailscale_auth_key = var.tailscale_auth_key
+    hostname           = "my-k3s-vm"
+  }))
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "StandardSSD_LRS"
@@ -100,4 +105,15 @@ resource "azurerm_linux_virtual_machine" "vm" {
   # 修正: 為了匹配 Trusted Launch VM
   secure_boot_enabled = true
   vtpm_enabled        = true
+}
+
+# ============================================================================
+# AWS Provider (for multi-cloud setup)
+# ============================================================================
+
+provider "aws" {
+  region = var.aws_region
+  # Credentials automatically loaded from:
+  # - AWS CLI (aws configure)
+  # - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 }

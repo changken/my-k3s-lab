@@ -2,6 +2,37 @@
 # Copy this file to terraform.tfvars and fill in your actual values
 # terraform.tfvars is ignored by git for security
 
+# ============================================================================
+# Common Variables
+# ============================================================================
+
+# Tailscale Auth Key (for automatic VPN enrollment)
+# Get from: https://login.tailscale.com/admin/settings/keys
+# Recommended: Create an ephemeral, reusable key with appropriate tags
+tailscale_auth_key = "tskey-auth-REPLACE_ME"
+
+# ============================================================================
+# Azure Variables
+# ============================================================================
+
 # Emergency SSH public key (repo-local; for backup access only)
-# Generate with: ssh-keygen -t rsa -b 4096 -f ./.ssh/azure_rsa -N ""
-emergency_ssh_public_key_path = "./.ssh/azure_rsa.pub"
+# Generate with: ssh-keygen -t ed25519 -f ./.ssh/azure_emergency_ed25519 -N ""
+emergency_ssh_public_key_path = "./.ssh/azure_emergency_ed25519.pub"
+
+# ============================================================================
+# AWS Variables
+# ============================================================================
+
+# AWS region
+aws_region = "us-east-1"
+
+# AWS EC2 instance type (t3.medium = 2 vCPU, 4 GB RAM)
+aws_instance_type = "t3.medium"
+
+# AWS SSH public key (repo-local; for backup access only)
+# Generate with: ssh-keygen -t ed25519 -f ./.ssh/aws_emergency_ed25519 -N ""
+# Or reuse the same key as Azure
+aws_ssh_public_key_path = "./.ssh/aws_emergency_ed25519.pub"
+
+# AWS availability zone (optional, leave empty for auto-select)
+# aws_availability_zone = "us-east-1a"
